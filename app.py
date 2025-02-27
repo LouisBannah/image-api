@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify
+import os
 import base64
 import io
-import os
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw
 
 app = Flask(__name__)
 
@@ -56,6 +56,7 @@ def apply_circular_mask(image, size=(300, 300), border_width=5):
 
 @app.route("/process-image", methods=["POST"])
 def process_image():
+    """ Endpoint to process base64 image """
     try:
         req_data = request.json
         base64_string = req_data.get("image", "")
@@ -77,6 +78,11 @@ def process_image():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/", methods=["GET"])
+def home():
+    """ Default route to check if API is running """
+    return "Image Processing API is running!", 200
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Use Render's assigned port
+    port = int(os.environ.get("PORT", 10000))  # Ensure Flask binds to Render's assigned port
     app.run(host="0.0.0.0", port=port)
