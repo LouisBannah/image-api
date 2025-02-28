@@ -17,8 +17,8 @@ def image_to_base64(image):
     image.save(buffered, format="PNG")  # Save as PNG to maintain transparency
     return base64.b64encode(buffered.getvalue()).decode()
 
-def apply_circular_mask(image, size=(300, 300), border_width=5):
-    """ Apply a circular mask and add a left-to-right green-to-blue gradient border """
+def apply_circular_mask(image, size=(300, 300), border_width=5, start_color=(26, 231, 53), end_color=(0, 160, 222)):
+    """ Apply a circular mask and add a left-to-right gradient border """
     image = image.resize(size, Image.LANCZOS)
 
     # Create a circular mask
@@ -35,10 +35,10 @@ def apply_circular_mask(image, size=(300, 300), border_width=5):
     border_draw = ImageDraw.Draw(border)
 
     for x in range(size[0]):
-        # Transition from Green (#1AE735) to Blue (#00A0DE)
-        r = int(26 + (0 - 26) * (x / size[0]))   # Red component
-        g = int(231 + (160 - 231) * (x / size[0])) # Green component
-        b = int(53 + (222 - 53) * (x / size[0]))  # Blue component
+        # Interpolating between the start and end color
+        r = int(start_color[0] + (end_color[0] - start_color[0]) * (x / size[0]))
+        g = int(start_color[1] + (end_color[1] - start_color[1]) * (x / size[0]))
+        b = int(start_color[2] + (end_color[2] - start_color[2]) * (x / size[0]))
         color = (r, g, b, 255)  # RGBA
 
         # Draw vertical gradient line
@@ -56,10 +56,25 @@ def apply_circular_mask(image, size=(300, 300), border_width=5):
 
 @app.route("/process-image", methods=["POST"])
 def process_image():
-    """ Endpoint to process base64 image """
+    """ Endpoint to process base64 image with dynamic settings """
     try:
         req_data = request.json
+
+        # Extract parameters
         base64_string = req_data.get("image", "")
+        width = req_data.get("width", 300)  # Default width 300
+        height = req_data.get("height", 300)  # Default height 300
+        border_width = req_data.get("border_width", 5)  # Default border width 5
+        start_color = req_data.get("start_color", "#1AE735")  # Default Green (#1AE735)
+        end_color = req_data.get("end_color", "#00A0DE")  # Default Blue (#00A0DE)
+
+        # Convert Hex colors to RGB
+        def hex_to_rgb(hex_color):
+            hex_color = hex_color.lstrip("#")
+            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+        start_color_rgb = hex_to_rgb(start_color)
+        end_color_rgb = hex_to_rgb(end_color)
 
         if not base64_string:
             return jsonify({"error": "No image provided"}), 400
@@ -68,7 +83,7 @@ def process_image():
         image = base64_to_image(base64_string)
 
         # Apply Circular Mask & Gradient Border
-        modified_image = apply_circular_mask(image)
+        modified_image = apply_circular_mask(image, size=(width, height), border_width=border_width, start_color=start_color_rgb, end_color=end_color_rgb)
 
         # Convert back to Base64
         result_base64 = image_to_base64(modified_image)
